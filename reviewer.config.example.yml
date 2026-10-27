@@ -1,0 +1,27 @@
+repos:
+  - owner/project
+
+events:
+  - opened
+  - reopened
+  - synchronize
+  - ready_for_review
+
+review:
+  model: auto
+  drafts: false
+  max_diff_lines: 1200
+  max_inline_comments: 10
+  min_inline_severity: medium
+
+context:
+  enabled: true
+  max_chunks: 10
+  max_document_bytes: 262144
+  retained_snapshots: 5
+  include:
+    - AGENTS.md
+    - README.md
+    - CONTRIBUTING.md
+    - docs/**
+    - .github/**

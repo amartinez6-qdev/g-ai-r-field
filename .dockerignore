@@ -1,0 +1,8 @@
+node_modules
+dist
+.git
+.env
+data
+tests
+reviewer.config.yml
+reviewer.config.example.yml

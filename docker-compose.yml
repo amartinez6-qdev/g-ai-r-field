@@ -1,0 +1,43 @@
+services:
+  omniroute:
+    build:
+      context: .
+      dockerfile: Dockerfile.omniroute
+    image: g-ai-r-field-omniroute:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:20128:20128"
+    volumes:
+      - omniroute-data:/app/data
+
+  reviewer:
+    profiles: ["reviewer"]
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - omniroute
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      OMNIROUTE_BASE_URL: http://omniroute:20128/v1
+      DATABASE_PATH: /app/data/g-air-field.sqlite
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - reviewer-data:/app/data
+      - ./reviewer.config.yml:/app/reviewer.config.yml:ro
+      - ./secrets:/run/secrets:ro
+      - ./secrets:/app/secrets:ro
+
+  cloudflared:
+    profiles: ["reviewer"]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      - reviewer
+    command: tunnel --no-autoupdate --url http://reviewer:8787
+
+volumes:
+  omniroute-data:
+  reviewer-data:
