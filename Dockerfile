@@ -12,7 +12,5 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=build /app/dist ./dist
-COPY reviewer.config.example.yml ./reviewer.config.example.yml
-COPY reviewer.config.yml ./reviewer.config.yml
 EXPOSE 8787
 CMD ["node", "dist/main.js"]

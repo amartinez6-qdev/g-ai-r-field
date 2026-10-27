@@ -4,3 +4,5 @@ dist
 .env
 data
 tests
+reviewer.config.yml
+reviewer.config.example.yml

@@ -78,7 +78,10 @@ function toReviewerConfig(raw: unknown): ReviewerConfig {
 export function loadConfig(cwd = process.cwd()): AppConfig {
   const configPathValue = env("CONFIG_PATH", "reviewer.config.yml")!;
   const configPath = isAbsolute(configPathValue) ? configPathValue : resolve(cwd, configPathValue);
-  const raw = existsSync(configPath) ? YAML.parse(readFileSync(configPath, "utf8")) : {};
+  if (!existsSync(configPath)) {
+    throw new Error(`Reviewer configuration file not found: ${configPath}`);
+  }
+  const raw = YAML.parse(readFileSync(configPath, "utf8"));
   const reviewer = toReviewerConfig(raw);
   if (reviewer.repos.length === 0 || reviewer.repos.some((repo) => repo === "owner/project")) {
     throw new Error(
