@@ -72,6 +72,15 @@ function normalizeModelJson(content: string): unknown {
   }
 }
 
+function fallbackReviewResult(): ReviewResult {
+  return {
+    summary:
+      "OmniRoute devolvió una respuesta no estructurada. No se generaron comentarios inline en esta ejecución; revisa la configuración del modelo para usar salida JSON.",
+    findings: [],
+    structured: false,
+  };
+}
+
 function parseAddedOrContextLines(patch: string | undefined): Set<number> {
   const lines = new Set<number>();
   if (!patch) return lines;
@@ -194,13 +203,21 @@ export class AiReviewer {
     });
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("OmniRoute returned an empty response");
-    const parsed = ReviewResultSchema.parse(normalizeModelJson(content));
+    let parsed: z.infer<typeof ReviewResultSchema>;
+    try {
+      parsed = ReviewResultSchema.parse(normalizeModelJson(content));
+    } catch (error) {
+      const preview = content.trim().replace(/\s+/g, " ").slice(0, 180);
+      console.warn(`OmniRoute returned an unstructured review (${preview})`, error);
+      return fallbackReviewResult();
+    }
     return {
       summary: parsed.summary,
       findings: parsed.findings.map((finding) => ({
         ...finding,
         endLine: finding.end_line,
       })),
+      structured: true,
     };
   }
 
@@ -220,11 +237,13 @@ export class AiReviewer {
       .slice(0, this.config.review.maxInlineComments);
 
     const activeFindingKeys = new Set(inlineFindings.map(findingKey));
-    const keptOpenKeys = await this.github.reconcileReviewThreads(
-      snapshot.repository,
-      snapshot.number,
-      activeFindingKeys,
-    );
+    const keptOpenKeys = result.structured
+      ? await this.github.reconcileReviewThreads(
+          snapshot.repository,
+          snapshot.number,
+          activeFindingKeys,
+        )
+      : new Set<string>();
     const comments: ReviewComment[] = inlineFindings
       .filter((finding) => !keptOpenKeys.has(findingKey(finding)))
       .map((finding) => ({
@@ -242,9 +261,11 @@ export class AiReviewer {
       "",
       result.summary,
       "",
-      result.findings.length === 0
-        ? "No se han encontrado problemas relevantes con la información disponible."
-        : `Hallazgos: ${result.findings.length} (${result.findings.filter((finding) => finding.severity === "critical" || finding.severity === "high").length} críticos/altos).`,
+      !result.structured
+        ? "No se generaron hallazgos estructurados porque el proveedor no devolvió JSON válido."
+        : result.findings.length === 0
+          ? "No se han encontrado problemas relevantes con la información disponible."
+          : `Hallazgos: ${result.findings.length} (${result.findings.filter((finding) => finding.severity === "critical" || finding.severity === "high").length} críticos/altos).`,
       "",
       "_Esta revisión es una sugerencia generada por IA y debe ser validada por una persona._",
       `<!-- g-air-field:v1 head_sha=${snapshot.headSha} -->`,

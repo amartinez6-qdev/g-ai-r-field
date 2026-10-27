@@ -62,7 +62,13 @@ export class ReviewQueue {
       await this.reviewer.publish(snapshot, result);
       this.storage.setJobStatus(repository, pullNumber, headSha, "succeeded");
       this.logger.info(
-        { repository, pullNumber, headSha, findings: result.findings.length },
+        {
+          repository,
+          pullNumber,
+          headSha,
+          findings: result.findings.length,
+          structured: result.structured,
+        },
         "Review published",
       );
     } catch (error) {

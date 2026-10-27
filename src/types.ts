@@ -37,6 +37,7 @@ export type Finding = {
 export type ReviewResult = {
   summary: string;
   findings: Finding[];
+  structured: boolean;
 };
 
 export type ContextChunk = {
