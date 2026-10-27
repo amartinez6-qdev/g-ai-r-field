@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Máscara circular exacta al estilo de GitHub -->
+    <clipPath id="githubCircle">
+      <circle cx="256" cy="256" r="190" />
+    </clipPath>
+  </defs>
+
+  <!-- Marco exterior negro con esquinas redondeadas (Icono App GitHub) -->
+  <rect width="512" height="512" rx="115" fill="#181717"/>
+
+  <!-- Interior: Círculo blanco de GitHub -->
+  <circle cx="256" cy="256" r="190" fill="#FFFFFF"/>
+
+  <!-- Contenido dentro del círculo -->
+  <g clip-path="url(#githubCircle)">
+    
+    <!-- 1. COLA DE GARFIELD (estilo tentáculo/cola de GitHub) -->
+        <path d="M 190 350 C 130 360 80 320 100 270 C 110 245 135 255 125 275 C 115 295 140 325 190 315 Z" 
+          fill="#FF9500" stroke="#181717" stroke-width="8" stroke-linejoin="round" transform="translate(0 40)"/>
+    <!-- Rayas negras de la cola -->
+    <path d="M 103 260 Q 112 268 123 273" stroke="#181717" stroke-width="7" stroke-linecap="round" fill="none" transform="translate(0 40)"/>
+    <path d="M 98 285 Q 110 290 125 288" stroke="#181717" stroke-width="7" stroke-linecap="round" fill="none" transform="translate(0 40)"/>
+    <path d="M 112 312 Q 130 315 145 305" stroke="#181717" stroke-width="7" stroke-linecap="round" fill="none" transform="translate(0 40)"/>
+
+    <!-- 2. CUERPO REGORDETE -->
+    <ellipse cx="256" cy="420" rx="110" ry="90" fill="#FF9500" stroke="#181717" stroke-width="9"/>
+    <!-- Rayas de la espalda/costado -->
+    <path d="M 152 400 Q 185 395 195 405" stroke="#181717" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <path d="M 160 435 Q 195 425 210 435" stroke="#181717" stroke-width="9" stroke-linecap="round" fill="none"/>
+
+    <!-- 3. OREJAS -->
+    <!-- Oreja Izquierda -->
+    <path d="M 175 165 C 165 115 210 105 220 145 Z" fill="#FF9500" stroke="#181717" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M 183 145 C 180 130 195 125 200 140" stroke="#181717" stroke-width="6" fill="#181717"/>
+    <!-- Oreja Derecha -->
+    <path d="M 337 165 C 347 115 302 105 292 145 Z" fill="#FF9500" stroke="#181717" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M 329 145 C 332 130 317 125 312 140" stroke="#181717" stroke-width="6" fill="#181717"/>
+
+    <!-- Pelitos icónicos entre las orejas -->
+    <path d="M 245 130 Q 240 112 232 118" stroke="#181717" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path d="M 256 128 Q 256 108 256 112" stroke="#181717" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path d="M 267 130 Q 272 112 280 118" stroke="#181717" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+    <!-- 4. CABEZA ANCHA Y CACHETONA -->
+    <path d="M 145 235 
+             C 135 170 200 130 256 130 
+             C 312 130 377 170 367 235 
+             C 367 295 320 315 256 315 
+             C 192 315 145 295 145 235 Z" 
+          fill="#FF9500" stroke="#181717" stroke-width="9" stroke-linejoin="round"/>
+
+    <!-- Rayas de la cabeza (Laterales) -->
+    <path d="M 148 210 Q 185 215 175 228 Q 150 225 148 210 Z" fill="#181717"/>
+    <path d="M 364 210 Q 327 215 337 228 Q 362 225 364 210 Z" fill="#181717"/>
+    <path d="M 160 175 Q 192 185 180 195 Q 160 190 160 175 Z" fill="#181717"/>
+    <path d="M 352 175 Q 320 185 332 195 Q 352 190 352 175 Z" fill="#181717"/>
+
+    <!-- 5. OJOS GRANDES OVALADOS -->
+    <!-- Ojo izquierdo fondo blanco -->
+    <ellipse cx="222" cy="205" rx="35" ry="46" fill="#FFFFFF" stroke="#181717" stroke-width="8"/>
+    <!-- Ojo derecho fondo blanco -->
+    <ellipse cx="290" cy="205" rx="35" ry="46" fill="#FFFFFF" stroke="#181717" stroke-width="8"/>
+
+    <!-- Párpados de sueño / pesados (color naranja) -->
+    <path d="M 188 205 C 190 165 255 165 257 205 Z" fill="#FF9500" stroke="#181717" stroke-width="8"/>
+    <path d="M 255 205 C 257 165 323 165 325 205 Z" fill="#FF9500" stroke="#181717" stroke-width="8"/>
+
+    <!-- Pupilas aburridas mirando hacia la izquierda -->
+    <ellipse cx="215" cy="216" rx="8" ry="11" fill="#181717"/>
+    <ellipse cx="283" cy="216" rx="8" ry="11" fill="#181717"/>
+
+    <!-- 6. HOCICO AMARILLO GORDITO -->
+    <!-- Mejilla izquierda -->
+    <ellipse cx="218" cy="265" rx="42" ry="26" fill="#FFE675" stroke="#181717" stroke-width="8"/>
+    <!-- Mejilla derecha -->
+    <ellipse cx="294" cy="265" rx="42" ry="26" fill="#FFE675" stroke="#181717" stroke-width="8"/>
+    <!-- Unión inferior del labio -->
+    <path d="M 215 285 Q 256 308 297 285" fill="#FFE675" stroke="#181717" stroke-width="8"/>
+
+    <!-- Pecas / puntos del bigote -->
+    <circle cx="195" cy="265" r="3.5" fill="#181717"/>
+    <circle cx="208" cy="272" r="3.5" fill="#181717"/>
+    <circle cx="200" cy="278" r="3.5" fill="#181717"/>
+    <circle cx="317" cy="265" r="3.5" fill="#181717"/>
+    <circle cx="304" cy="272" r="3.5" fill="#181717"/>
+    <circle cx="312" cy="278" r="3.5" fill="#181717"/>
+
+    <!-- 7. NARIZ ROSADA OVALADA -->
+    <ellipse cx="256" cy="246" rx="16" ry="12" fill="#FF8BA7" stroke="#181717" stroke-width="8"/>
+    <!-- Brillo en la nariz -->
+    <ellipse cx="252" cy="243" rx="4" ry="2.5" fill="#FFFFFF"/>
+  </g>
+</svg>
