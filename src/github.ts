@@ -20,6 +20,22 @@ type ReviewComment = {
   start_side?: "RIGHT";
 };
 
+type ReviewThreadsResponse = {
+  repository?: {
+    pullRequest?: {
+      reviewThreads?: {
+        nodes: Array<{
+          id: string;
+          isResolved: boolean;
+          comments: { nodes: Array<{ body: string }> };
+        } | null>;
+      };
+    } | null;
+  } | null;
+};
+
+const FINDING_MARKER = /<!--\s*g-air-field:finding\s+key=([a-f0-9]{16})\s*-->/i;
+
 export class GitHubClient {
   private readonly config: AppConfig["github"];
   private appClient?: Octokit;
@@ -135,6 +151,59 @@ export class GitHubClient {
       event: "COMMENT",
       comments: comments as never,
     });
+  }
+
+  public async reconcileReviewThreads(
+    repository: Repository,
+    pullNumber: number,
+    activeFindingKeys: ReadonlySet<string>,
+  ): Promise<Set<string>> {
+    const octokit = await this.client();
+    const response = await octokit.graphql<ReviewThreadsResponse>(
+      `
+        query ReviewThreads($owner: String!, $repo: String!, $number: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $number) {
+              reviewThreads(first: 100) {
+                nodes {
+                  id
+                  isResolved
+                  comments(first: 100) {
+                    nodes { body }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      { owner: repository.owner, repo: repository.name, number: pullNumber },
+    );
+    const threads = response.repository?.pullRequest?.reviewThreads?.nodes ?? [];
+    const keptOpen = new Set<string>();
+    for (const thread of threads) {
+      if (!thread) continue;
+      const marker = thread.comments.nodes
+        .map((comment) => comment.body.match(FINDING_MARKER)?.[1])
+        .find((key): key is string => Boolean(key));
+      if (!marker) continue;
+      if (thread.isResolved) continue;
+      if (activeFindingKeys.has(marker)) {
+        keptOpen.add(marker);
+        continue;
+      }
+      await octokit.graphql(
+        `
+          mutation ResolveReviewThread($threadId: ID!) {
+            resolveReviewThread(input: { threadId: $threadId }) {
+              thread { id isResolved }
+            }
+          }
+        `,
+        { threadId: thread.id },
+      );
+    }
+    return keptOpen;
   }
 }
 

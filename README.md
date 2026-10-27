@@ -222,6 +222,17 @@ Watch both services while testing:
 docker compose --profile reviewer logs -f reviewer cloudflared
 ```
 
+### Review lifecycle across pushes
+
+Every push to an open PR sends a `synchronize` webhook. G-AI-R-Field reviews the new head SHA and reconciles its previous inline findings:
+
+- A finding that is still present keeps its existing GitHub thread open; the service does not duplicate it on every push.
+- A finding that is no longer present is resolved through GitHub's review-thread API.
+- A new finding receives a new inline comment.
+- The summary review is published for every successfully processed head SHA.
+
+Inline comments created before this reconciliation behavior was enabled do not contain a G-AI-R-Field finding marker and are left unchanged. The GitHub App needs Pull requests read/write permission to resolve review threads.
+
 ### Webhook troubleshooting
 
 - `401 Invalid webhook signature`: the GitHub webhook Secret and `GITHUB_WEBHOOK_SECRET` do not match, or the payload was changed by a proxy.

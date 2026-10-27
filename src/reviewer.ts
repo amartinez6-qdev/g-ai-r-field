@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { RepositoryContext } from "./context.js";
 import type { GitHubClient, ReviewComment } from "./github.js";
@@ -85,6 +86,15 @@ function formatContext(chunks: ReturnType<RepositoryContext["retrieve"]>): strin
         `--- ${chunk.path}:${chunk.lineStart}-${chunk.lineEnd} (${chunk.sourceType}) ---\n${chunk.content}`,
     )
     .join("\n\n");
+}
+
+function findingKey(finding: Finding): string {
+  const identity = [
+    finding.path ?? "",
+    finding.category,
+    finding.title.trim().toLowerCase().replace(/\s+/g, " "),
+  ].join("|");
+  return createHash("sha256").update(identity).digest("hex").slice(0, 16);
 }
 
 function buildPrompt(snapshot: PullRequestSnapshot, context: string, diff: string): string {
@@ -178,15 +188,23 @@ export class AiReviewer {
       )
       .slice(0, this.config.review.maxInlineComments);
 
-    const comments: ReviewComment[] = inlineFindings.map((finding) => ({
-      path: finding.path!,
-      body: `**${finding.severity.toUpperCase()}** — ${finding.title}\n\n${finding.body}`,
-      line: finding.endLine && finding.endLine >= finding.line! ? finding.endLine : finding.line!,
-      side: "RIGHT",
-      ...(finding.endLine && finding.endLine > finding.line!
-        ? { start_line: finding.line, start_side: "RIGHT" as const }
-        : {}),
-    }));
+    const activeFindingKeys = new Set(inlineFindings.map(findingKey));
+    const keptOpenKeys = await this.github.reconcileReviewThreads(
+      snapshot.repository,
+      snapshot.number,
+      activeFindingKeys,
+    );
+    const comments: ReviewComment[] = inlineFindings
+      .filter((finding) => !keptOpenKeys.has(findingKey(finding)))
+      .map((finding) => ({
+        path: finding.path!,
+        body: `**${finding.severity.toUpperCase()}** — ${finding.title}\n\n${finding.body}\n\n<!-- g-air-field:finding key=${findingKey(finding)} -->`,
+        line: finding.endLine && finding.endLine >= finding.line! ? finding.endLine : finding.line!,
+        side: "RIGHT",
+        ...(finding.endLine && finding.endLine > finding.line!
+          ? { start_line: finding.line, start_side: "RIGHT" as const }
+          : {}),
+      }));
 
     const summaryLines = [
       "## G-AI-R-Field",
@@ -210,4 +228,4 @@ export class AiReviewer {
   }
 }
 
-export { formatDiff, parseAddedOrContextLines };
+export { findingKey, formatDiff, parseAddedOrContextLines };
