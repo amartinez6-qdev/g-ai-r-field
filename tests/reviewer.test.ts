@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { findingKey, formatDiff, parseAddedOrContextLines } from "../src/reviewer.js";
+import {
+  findingKey,
+  formatDiff,
+  normalizeModelJson,
+  parseAddedOrContextLines,
+} from "../src/reviewer.js";
 
 describe("diff handling", () => {
   it("maps added and context lines from a unified diff", () => {
@@ -43,5 +48,23 @@ describe("finding identity", () => {
       severity: "high",
     });
     expect(moved).toBe(first);
+  });
+});
+
+describe("model response parsing", () => {
+  it("extracts JSON when a provider adds a short preamble", () => {
+    expect(
+      normalizeModelJson('We need to review this carefully. {"summary":"ok","findings":[]}'),
+    ).toEqual({
+      summary: "ok",
+      findings: [],
+    });
+  });
+
+  it("extracts JSON from a markdown fence", () => {
+    expect(normalizeModelJson('```json\n{"summary":"ok","findings":[]}\n```')).toEqual({
+      summary: "ok",
+      findings: [],
+    });
   });
 });

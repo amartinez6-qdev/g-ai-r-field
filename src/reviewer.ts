@@ -35,10 +35,41 @@ const severityRank: Record<ReviewSeverity, number> = {
   critical: 3,
 };
 
+function extractJsonObject(content: string): string {
+  const start = content.indexOf("{");
+  if (start < 0) return content;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < content.length; index += 1) {
+    const character = content[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+    } else if (character === "{") {
+      depth += 1;
+    } else if (character === "}" && --depth === 0) {
+      return content.slice(start, index + 1);
+    }
+  }
+  return content;
+}
+
 function normalizeModelJson(content: string): unknown {
   const trimmed = content.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return JSON.parse(fenced?.[1] ?? trimmed);
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = (fenced?.[1] ?? trimmed).trim();
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return JSON.parse(extractJsonObject(candidate));
+  }
 }
 
 function parseAddedOrContextLines(patch: string | undefined): Set<number> {
@@ -228,4 +259,4 @@ export class AiReviewer {
   }
 }
 
-export { findingKey, formatDiff, parseAddedOrContextLines };
+export { findingKey, formatDiff, normalizeModelJson, parseAddedOrContextLines };
