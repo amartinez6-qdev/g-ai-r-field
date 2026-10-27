@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPrompt,
   findingKey,
   formatDiff,
   normalizeModelJson,
@@ -17,6 +18,11 @@ describe("diff handling", () => {
       "+new line",
     ].join("\n");
     expect([...parseAddedOrContextLines(patch)]).toEqual([1, 2, 3, 4]);
+  });
+
+  it("does not treat the trailing newline as a commentable diff line", () => {
+    const patch = "@@ -1,1 +1,1 @@\n+line one\n";
+    expect([...parseAddedOrContextLines(patch)]).toEqual([1]);
   });
 
   it("limits formatted diffs", () => {
@@ -66,5 +72,38 @@ describe("model response parsing", () => {
       summary: "ok",
       findings: [],
     });
+  });
+
+  it("extracts JSON from a reasoning field when the provider leaves content empty", () => {
+    expect(
+      normalizeModelJson(
+        'I reviewed the change and will return the requested object. {"summary":"ok","findings":[]}',
+      ),
+    ).toEqual({
+      summary: "ok",
+      findings: [],
+    });
+  });
+});
+
+describe("provider prompt budget", () => {
+  it("keeps the prompt below OmniRoute's Cloudflare Playground limit", () => {
+    const prompt = buildPrompt(
+      {
+        repository: { owner: "acme", name: "project" },
+        number: 1,
+        title: "Large change",
+        body: "description ".repeat(500),
+        headSha: "abc123",
+        baseBranch: "main",
+        draft: false,
+        files: [],
+      },
+      "repository conventions ".repeat(1000),
+      "diff line ".repeat(1000),
+    );
+
+    expect(prompt.length).toBeLessThanOrEqual(4200);
+    expect(prompt).toContain("Return JSON only");
   });
 });

@@ -1,6 +1,9 @@
 services:
   omniroute:
-    image: diegosouzapw/omniroute:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.omniroute
+    image: g-ai-r-field-omniroute:local
     restart: unless-stopped
     ports:
       - "127.0.0.1:20128:20128"

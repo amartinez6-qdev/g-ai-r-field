@@ -192,16 +192,24 @@ export class GitHubClient {
         keptOpen.add(marker);
         continue;
       }
-      await octokit.graphql(
-        `
-          mutation ResolveReviewThread($threadId: ID!) {
-            resolveReviewThread(input: { threadId: $threadId }) {
-              thread { id isResolved }
+      try {
+        await octokit.graphql(
+          `
+            mutation ResolveReviewThread($threadId: ID!) {
+              resolveReviewThread(input: { threadId: $threadId }) {
+                thread { id isResolved }
+              }
             }
-          }
-        `,
-        { threadId: thread.id },
-      );
+          `,
+          { threadId: thread.id },
+        );
+      } catch (error) {
+        // A token may be allowed to create reviews but not resolve existing threads.
+        console.warn(
+          `Could not resolve stale review thread ${thread.id}; continuing with publication`,
+          error,
+        );
+      }
     }
     return keptOpen;
   }

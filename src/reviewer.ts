@@ -35,6 +35,8 @@ const severityRank: Record<ReviewSeverity, number> = {
   critical: 3,
 };
 
+const MAX_PROVIDER_PROMPT_CHARS = 4200;
+
 function extractJsonObject(content: string): string {
   const start = content.indexOf("{");
   if (start < 0) return content;
@@ -93,7 +95,7 @@ function parseAddedOrContextLines(patch: string | undefined): Set<number> {
     }
     if (line.startsWith("+++") || line.startsWith("---")) continue;
     if (line.startsWith("-")) continue;
-    if (line.startsWith("+") || line.startsWith(" ") || line === "") lines.add(newLine);
+    if (line.startsWith("+") || line.startsWith(" ")) lines.add(newLine);
     newLine += 1;
   }
   return lines;
@@ -137,7 +139,17 @@ function findingKey(finding: Finding): string {
   return createHash("sha256").update(identity).digest("hex").slice(0, 16);
 }
 
-function buildPrompt(snapshot: PullRequestSnapshot, context: string, diff: string): string {
+function truncateText(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, maxChars)}\n...[truncated to fit provider prompt limit]`;
+}
+
+function renderPrompt(
+  snapshot: PullRequestSnapshot,
+  context: string,
+  diff: string,
+  body: string,
+): string {
   return `Review this GitHub pull request as G-AI-R-Field.
 
 Pull request: #${snapshot.number} ${snapshot.title}
@@ -158,7 +170,27 @@ Rules:
 - Return JSON only with this shape: {"summary": string, "findings": [{"severity": "critical|high|medium|low", "category": "correctness|security|tests|maintainability", "title": string, "body": string, "path": string?, "line": number?, "end_line": number?, "confidence": number}]}.
 
 PR description:
-${snapshot.body || "[No description]"}`;
+${body}`;
+}
+
+function buildPrompt(snapshot: PullRequestSnapshot, context: string, diff: string): string {
+  let contextText = truncateText(context, 500);
+  let diffText = truncateText(diff, 2200);
+  const bodyText = truncateText(snapshot.body || "[No description]", 200);
+  let prompt = renderPrompt(snapshot, contextText, diffText, bodyText);
+
+  if (prompt.length > MAX_PROVIDER_PROMPT_CHARS) {
+    diffText = truncateText(
+      diffText,
+      Math.max(1000, 2200 - (prompt.length - MAX_PROVIDER_PROMPT_CHARS)),
+    );
+    prompt = renderPrompt(snapshot, contextText, diffText, bodyText);
+  }
+  if (prompt.length > MAX_PROVIDER_PROMPT_CHARS) {
+    contextText = truncateText(contextText, 300);
+    prompt = renderPrompt(snapshot, contextText, diffText, bodyText);
+  }
+  return prompt;
 }
 
 export class AiReviewer {
@@ -172,6 +204,7 @@ export class AiReviewer {
     this.client = new OpenAI({
       apiKey: config.omniroute.apiKey,
       baseURL: config.omniroute.baseUrl,
+      timeout: 90_000,
     });
   }
 
@@ -183,7 +216,7 @@ export class AiReviewer {
     const response = await this.client.chat.completions.create({
       model: this.config.omniroute.model,
       temperature: 0,
-      max_tokens: 3000,
+      max_tokens: 1800,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -201,24 +234,36 @@ export class AiReviewer {
         },
       ],
     });
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error("OmniRoute returned an empty response");
-    let parsed: z.infer<typeof ReviewResultSchema>;
-    try {
-      parsed = ReviewResultSchema.parse(normalizeModelJson(content));
-    } catch (error) {
-      const preview = content.trim().replace(/\s+/g, " ").slice(0, 180);
-      console.warn(`OmniRoute returned an unstructured review (${preview})`, error);
-      return fallbackReviewResult();
+    const message = response.choices[0]?.message;
+    const content = message?.content?.trim() || undefined;
+    const reasoningContent =
+      typeof (message as typeof message & { reasoning_content?: unknown })?.reasoning_content ===
+      "string"
+        ? (message as typeof message & { reasoning_content: string }).reasoning_content.trim()
+        : undefined;
+    const candidates = [content, reasoningContent].filter((candidate): candidate is string =>
+      Boolean(candidate),
+    );
+    if (candidates.length === 0) throw new Error("OmniRoute returned an empty response");
+    let parseError: unknown;
+    for (const candidate of candidates) {
+      try {
+        const parsed = ReviewResultSchema.parse(normalizeModelJson(candidate));
+        return {
+          summary: parsed.summary,
+          findings: parsed.findings.map((finding) => ({
+            ...finding,
+            endLine: finding.end_line,
+          })),
+          structured: true,
+        };
+      } catch (error) {
+        parseError = error;
+      }
     }
-    return {
-      summary: parsed.summary,
-      findings: parsed.findings.map((finding) => ({
-        ...finding,
-        endLine: finding.end_line,
-      })),
-      structured: true,
-    };
+    const preview = candidates[0].replace(/\s+/g, " ").slice(0, 180);
+    console.warn(`OmniRoute returned an unstructured review (${preview})`, parseError);
+    return fallbackReviewResult();
   }
 
   public async publish(snapshot: PullRequestSnapshot, result: ReviewResult): Promise<void> {
@@ -249,9 +294,16 @@ export class AiReviewer {
       .map((finding) => ({
         path: finding.path!,
         body: `**${finding.severity.toUpperCase()}** — ${finding.title}\n\n${finding.body}\n\n<!-- g-air-field:finding key=${findingKey(finding)} -->`,
-        line: finding.endLine && finding.endLine >= finding.line! ? finding.endLine : finding.line!,
+        line:
+          finding.endLine &&
+          finding.endLine >= finding.line! &&
+          commentableLines.get(finding.path!)?.has(finding.endLine)
+            ? finding.endLine
+            : finding.line!,
         side: "RIGHT",
-        ...(finding.endLine && finding.endLine > finding.line!
+        ...(finding.endLine &&
+        finding.endLine > finding.line! &&
+        commentableLines.get(finding.path!)?.has(finding.endLine)
           ? { start_line: finding.line, start_side: "RIGHT" as const }
           : {}),
       }));
@@ -280,4 +332,4 @@ export class AiReviewer {
   }
 }
 
-export { findingKey, formatDiff, normalizeModelJson, parseAddedOrContextLines };
+export { buildPrompt, findingKey, formatDiff, normalizeModelJson, parseAddedOrContextLines };

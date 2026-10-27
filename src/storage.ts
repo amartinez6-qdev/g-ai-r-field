@@ -16,7 +16,10 @@ type SqlDatabase = {
   close: () => void;
 };
 
-type StoredJob = { status: "queued" | "running" | "succeeded" | "failed" };
+type StoredJob = {
+  status: "queued" | "running" | "succeeded" | "failed";
+  deliveryId: string;
+};
 
 export class Storage {
   private readonly db: SqlDatabase;
@@ -61,10 +64,14 @@ export class Storage {
     headSha: string,
   ): StoredJob | null {
     const row = this.db
-      .prepare("SELECT status FROM jobs WHERE repository = ? AND pull_number = ? AND head_sha = ?")
+      .prepare(
+        "SELECT status, delivery_id AS deliveryId FROM jobs WHERE repository = ? AND pull_number = ? AND head_sha = ?",
+      )
       .get(repositoryKey(repository), pullNumber, headSha) as
-      { status?: StoredJob["status"] } | undefined;
-    return row?.status ? { status: row.status } : null;
+      { status?: StoredJob["status"]; deliveryId?: string } | undefined;
+    return row?.status && row.deliveryId
+      ? { status: row.status, deliveryId: row.deliveryId }
+      : null;
   }
 
   public upsertJob(
@@ -74,11 +81,7 @@ export class Storage {
     deliveryId: string,
   ): boolean {
     const existing = this.getJobStatus(repository, pullNumber, headSha);
-    if (
-      existing?.status === "queued" ||
-      existing?.status === "running" ||
-      existing?.status === "succeeded"
-    ) {
+    if (existing?.status === "queued" || existing?.status === "running") {
       return false;
     }
     this.db

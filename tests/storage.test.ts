@@ -5,6 +5,20 @@ import { join } from "node:path";
 import { Storage } from "../src/storage.js";
 
 describe("local context storage", () => {
+  it("deduplicates active work but allows a redelivery for the same commit", () => {
+    const directory = mkdtempSync(join(tmpdir(), "g-air-field-"));
+    const storage = new Storage(join(directory, "test.sqlite"));
+    const repository = { owner: "acme", name: "project" };
+
+    expect(storage.upsertJob(repository, 1, "abc123", "delivery-1")).toBe(true);
+    expect(storage.upsertJob(repository, 1, "abc123", "delivery-1")).toBe(false);
+    storage.setJobStatus(repository, 1, "abc123", "succeeded");
+    expect(storage.upsertJob(repository, 1, "abc123", "delivery-1")).toBe(true);
+
+    storage.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it("indexes and retrieves context chunks", () => {
     const directory = mkdtempSync(join(tmpdir(), "g-air-field-"));
     const storage = new Storage(join(directory, "test.sqlite"));

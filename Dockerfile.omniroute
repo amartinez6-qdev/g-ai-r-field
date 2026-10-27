@@ -1,0 +1,13 @@
+FROM diegosouzapw/omniroute:latest
+
+USER root
+
+# Cloudflare Playground uses Playwright from inside the OmniRoute container.
+# Keep the browser in a shared path so the runtime `node` user can launch it.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+RUN mkdir -p /ms-playwright \
+    && node /app/node_modules/playwright-core/cli.js install --with-deps chromium \
+    && chown -R node:node /ms-playwright
+
+USER node
